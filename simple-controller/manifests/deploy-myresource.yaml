@@ -1,0 +1,9 @@
+apiVersion: example.com/v1
+kind: MyResource
+metadata:
+  name: example-myresource
+  namespace: default
+spec:
+  name: "example-config"
+  configKey: "example-key"
+  configValue: "example-value"

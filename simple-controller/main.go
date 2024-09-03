@@ -34,9 +34,10 @@ var (
 )
 
 type Controller struct {
-	dynamicClient dynamic.Interface
-	queue         workqueue.RateLimitingInterface
-	informer      cache.SharedIndexInformer
+	dynamicClient      dynamic.Interface
+	queue              workqueue.RateLimitingInterface
+	myResourceInformer cache.SharedIndexInformer
+	configMapInformer  cache.SharedIndexInformer
 }
 
 func NewController(dynamicClient dynamic.Interface) *Controller {
@@ -91,9 +92,10 @@ func NewController(dynamicClient dynamic.Interface) *Controller {
 	})
 
 	return &Controller{
-		dynamicClient: dynamicClient,
-		queue:         queue,
-		informer:      myResourceInformer,
+		dynamicClient:      dynamicClient,
+		queue:              queue,
+		myResourceInformer: myResourceInformer,
+		configMapInformer:  configMapInformer,
 	}
 }
 
@@ -101,11 +103,10 @@ func (c *Controller) Run(stopCh chan struct{}) {
 	defer utilruntime.HandleCrash()
 	defer c.queue.ShutDown()
 
-	go c.informer.Run(stopCh)
-	configMapInformer := c.NewConfigMapInformer()
-	go configMapInformer.Run(stopCh)
+	go c.myResourceInformer.Run(stopCh)
+	go c.configMapInformer.Run(stopCh)
 
-	if !cache.WaitForCacheSync(stopCh, c.informer.HasSynced, configMapInformer.HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, c.myResourceInformer.HasSynced, c.configMapInformer.HasSynced) {
 		utilruntime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 		return
 	}
@@ -124,29 +125,34 @@ func (c *Controller) Run(stopCh chan struct{}) {
 }
 
 func (c *Controller) processItem(obj interface{}) error {
-	switch resource := obj.(type) {
-	case *unstructured.Unstructured:
-		if resource.GetKind() == "ConfigMap" {
-			return c.recreateConfigMap(resource)
-		} else {
-			return c.processMyResource(resource)
-		}
+	unstructuredObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		return fmt.Errorf("expected Unstructured object but got %T", obj)
+	}
+
+	switch unstructuredObj.GetKind() {
+	case "ConfigMap":
+		return c.recreateConfigMap(unstructuredObj)
 	default:
-		return fmt.Errorf("unexpected type: %T", obj)
+		return c.processMyResource(unstructuredObj)
 	}
 }
 
 func (c *Controller) processMyResource(obj *unstructured.Unstructured) error {
 	fmt.Printf("Processing MyResource: %s/%s\n", obj.GetNamespace(), obj.GetName())
 
-	unstructuredObj, err := c.dynamicClient.Resource(myResourceGVR).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get MyResource: %v", err)
+	name, found, err := unstructured.NestedString(obj.Object, "spec", "name")
+	if err != nil || !found {
+		return fmt.Errorf("failed to retrieve 'name' from MyResource: %v", err)
 	}
-
-	name, _, _ := unstructured.NestedString(unstructuredObj.Object, "spec", "name")
-	configKey, _, _ := unstructured.NestedString(unstructuredObj.Object, "spec", "configKey")
-	configValue, _, _ := unstructured.NestedString(unstructuredObj.Object, "spec", "configValue")
+	configKey, found, err := unstructured.NestedString(obj.Object, "spec", "configKey")
+	if err != nil || !found {
+		return fmt.Errorf("failed to retrieve 'configKey' from MyResource: %v", err)
+	}
+	configValue, found, err := unstructured.NestedString(obj.Object, "spec", "configValue")
+	if err != nil || !found {
+		return fmt.Errorf("failed to retrieve 'configValue' from MyResource: %v", err)
+	}
 
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -165,9 +171,10 @@ func (c *Controller) processMyResource(obj *unstructured.Unstructured) error {
 
 	_, err = c.dynamicClient.Resource(configMapGVR).Namespace(obj.GetNamespace()).Create(context.TODO(), &unstructured.Unstructured{Object: configMapUnstructured}, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to create configmap: %v", err)
+		return fmt.Errorf("failed to create ConfigMap: %v", err)
 	}
 
+	fmt.Printf("ConfigMap %s/%s created successfully.\n", obj.GetNamespace(), name)
 	return nil
 }
 
@@ -175,35 +182,26 @@ func (c *Controller) recreateConfigMap(obj *unstructured.Unstructured) error {
 	name := obj.GetName()
 	namespace := obj.GetNamespace()
 
-	// MyResourceからConfigMapを再生成
+	fmt.Printf("ConfigMap %s/%s was deleted, attempting to recreate...\n", namespace, name)
+
+	// 対応する MyResource を探す
 	myResourceList, err := c.dynamicClient.Resource(myResourceGVR).Namespace(namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to list MyResources: %v", err)
 	}
 
 	for _, myResource := range myResourceList.Items {
-		if myResource.GetName() == name {
+		resourceName, found, err := unstructured.NestedString(myResource.Object, "spec", "name")
+		if err != nil || !found {
+			continue
+		}
+
+		if resourceName == name {
 			return c.processMyResource(&myResource)
 		}
 	}
 
 	return fmt.Errorf("no corresponding MyResource found for ConfigMap %s/%s", namespace, name)
-}
-
-func (c *Controller) NewConfigMapInformer() cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return c.dynamicClient.Resource(configMapGVR).Namespace(metav1.NamespaceAll).List(context.TODO(), options)
-			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return c.dynamicClient.Resource(configMapGVR).Namespace(metav1.NamespaceAll).Watch(context.TODO(), options)
-			},
-		},
-		&unstructured.Unstructured{},
-		0,
-		cache.Indexers{},
-	)
 }
 
 func main() {

@@ -25,46 +25,46 @@ import (
 	v1alpha1 "k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1"
 )
 
-// FooLister helps list Foos.
+// YamaDockerLister helps list Foos.
 // All objects returned here must be treated as read-only.
-type FooLister interface {
+type YamaDockerLister interface {
 	// List lists all Foos in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Foo, err error)
 	// Foos returns an object that can list and get Foos.
-	Foos(namespace string) FooNamespaceLister
-	FooListerExpansion
+	Foos(namespace string) YamaDockerNamespaceLister
+	YamaDockerListerExpansion
 }
 
-// fooLister implements the FooLister interface.
-type fooLister struct {
+// yamaDockerLister implements the YamaDockerLister interface.
+type yamaDockerLister struct {
 	listers.ResourceIndexer[*v1alpha1.Foo]
 }
 
-// NewFooLister returns a new FooLister.
-func NewFooLister(indexer cache.Indexer) FooLister {
-	return &fooLister{listers.New[*v1alpha1.Foo](indexer, v1alpha1.Resource("foo"))}
+// NewYamaDockerLister returns a new YamaDockerLister.
+func NewYamaDockerLister(indexer cache.Indexer) YamaDockerLister {
+	return &yamaDockerLister{listers.New[*v1alpha1.Foo](indexer, v1alpha1.Resource("foo"))}
 }
 
 // Foos returns an object that can list and get Foos.
-func (s *fooLister) Foos(namespace string) FooNamespaceLister {
-	return fooNamespaceLister{listers.NewNamespaced[*v1alpha1.Foo](s.ResourceIndexer, namespace)}
+func (s *yamaDockerLister) Foos(namespace string) YamaDockerNamespaceLister {
+	return yamaDockerNamespaceLister{listers.NewNamespaced[*v1alpha1.Foo](s.ResourceIndexer, namespace)}
 }
 
-// FooNamespaceLister helps list and get Foos.
+// YamaDockerNamespaceLister helps list and get Foos.
 // All objects returned here must be treated as read-only.
-type FooNamespaceLister interface {
+type YamaDockerNamespaceLister interface {
 	// List lists all Foos in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.Foo, err error)
 	// Get retrieves the Foo from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1alpha1.Foo, error)
-	FooNamespaceListerExpansion
+	YamaDockerNamespaceListerExpansion
 }
 
 // fooNamespaceLister implements the FooNamespaceLister
 // interface.
-type fooNamespaceLister struct {
+type yamaDockerNamespaceLister struct {
 	listers.ResourceIndexer[*v1alpha1.Foo]
 }

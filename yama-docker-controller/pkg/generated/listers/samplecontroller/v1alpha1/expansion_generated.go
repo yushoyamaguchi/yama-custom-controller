@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
-// FooListerExpansion allows custom methods to be added to
-// FooLister.
-type FooListerExpansion interface{}
+// YamaDockerListerExpansion allows custom methods to be added to
+// YamaDockerLister.
+type YamaDockerListerExpansion interface{}
 
 // FooNamespaceListerExpansion allows custom methods to be added to
 // FooNamespaceLister.
-type FooNamespaceListerExpansion interface{}
+type YamaDockerNamespaceListerExpansion interface{}

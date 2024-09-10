@@ -36,7 +36,7 @@ import (
 // Foos.
 type YamaDockerInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.FooLister
+	Lister() v1alpha1.YamaDockerLister
 }
 
 type yamaDockerInformer struct {
@@ -85,6 +85,6 @@ func (f *yamaDockerInformer) Informer() cache.SharedIndexInformer {
 	return f.factory.InformerFor(&samplecontrollerv1alpha1.Foo{}, f.defaultInformer)
 }
 
-func (f *yamaDockerInformer) Lister() v1alpha1.FooLister {
-	return v1alpha1.NewFooLister(f.Informer().GetIndexer())
+func (f *yamaDockerInformer) Lister() v1alpha1.YamaDockerLister {
+	return v1alpha1.NewYamaDockerLister(f.Informer().GetIndexer())
 }

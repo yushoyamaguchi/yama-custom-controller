@@ -51,7 +51,7 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	fooLister        []*samplecontroller.Foo
+	yamaDockerLister []*samplecontroller.Foo
 	deploymentLister []*apps.Deployment
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
@@ -97,7 +97,7 @@ func (f *fixture) newController(ctx context.Context) (*Controller, informers.Sha
 	c.deploymentsSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
 
-	for _, f := range f.fooLister {
+	for _, f := range f.yamaDockerLister {
 		i.Samplecontroller().V1alpha1().Foos().Informer().GetIndexer().Add(f)
 	}
 
@@ -250,7 +250,7 @@ func TestCreatesDeployment(t *testing.T) {
 	foo := newFoo("test", int32Ptr(1))
 	_, ctx := ktesting.NewTestContext(t)
 
-	f.fooLister = append(f.fooLister, foo)
+	f.yamaDockerLister = append(f.yamaDockerLister, foo)
 	f.objects = append(f.objects, foo)
 
 	expDeployment := newDeployment(foo)
@@ -267,7 +267,7 @@ func TestDoNothing(t *testing.T) {
 
 	d := newDeployment(foo)
 
-	f.fooLister = append(f.fooLister, foo)
+	f.yamaDockerLister = append(f.yamaDockerLister, foo)
 	f.objects = append(f.objects, foo)
 	f.deploymentLister = append(f.deploymentLister, d)
 	f.kubeobjects = append(f.kubeobjects, d)
@@ -287,7 +287,7 @@ func TestUpdateDeployment(t *testing.T) {
 	foo.Spec.Replicas = int32Ptr(2)
 	expDeployment := newDeployment(foo)
 
-	f.fooLister = append(f.fooLister, foo)
+	f.yamaDockerLister = append(f.yamaDockerLister, foo)
 	f.objects = append(f.objects, foo)
 	f.deploymentLister = append(f.deploymentLister, d)
 	f.kubeobjects = append(f.kubeobjects, d)
@@ -306,7 +306,7 @@ func TestNotControlledByUs(t *testing.T) {
 
 	d.ObjectMeta.OwnerReferences = []metav1.OwnerReference{}
 
-	f.fooLister = append(f.fooLister, foo)
+	f.yamaDockerLister = append(f.yamaDockerLister, foo)
 	f.objects = append(f.objects, foo)
 	f.deploymentLister = append(f.deploymentLister, d)
 	f.kubeobjects = append(f.kubeobjects, d)

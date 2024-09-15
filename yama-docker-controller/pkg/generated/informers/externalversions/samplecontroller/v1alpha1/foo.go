@@ -71,7 +71,7 @@ func NewFilteredYamaDockerInformer(client versioned.Interface, namespace string,
 				return client.SamplecontrollerV1alpha1().Foos(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&samplecontrollerv1alpha1.Foo{},
+		&samplecontrollerv1alpha1.YamaDocker{},
 		resyncPeriod,
 		indexers,
 	)
@@ -82,7 +82,7 @@ func (f *yamaDockerInformer) defaultInformer(client versioned.Interface, resyncP
 }
 
 func (f *yamaDockerInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&samplecontrollerv1alpha1.Foo{}, f.defaultInformer)
+	return f.factory.InformerFor(&samplecontrollerv1alpha1.YamaDocker{}, f.defaultInformer)
 }
 
 func (f *yamaDockerInformer) Lister() v1alpha1.YamaDockerLister {

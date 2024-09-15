@@ -40,15 +40,15 @@ var foosResource = v1alpha1.SchemeGroupVersion.WithResource("foos")
 var foosKind = v1alpha1.SchemeGroupVersion.WithKind("Foo")
 
 // Get takes name of the foo, and returns the corresponding foo object, and an error if there is any.
-func (c *FakeFoos) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.Foo, err error) {
-	emptyResult := &v1alpha1.Foo{}
+func (c *FakeFoos) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1alpha1.YamaDocker, err error) {
+	emptyResult := &v1alpha1.YamaDocker{}
 	obj, err := c.Fake.
 		Invokes(testing.NewGetActionWithOptions(foosResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
 	}
-	return obj.(*v1alpha1.Foo), err
+	return obj.(*v1alpha1.YamaDocker), err
 }
 
 // List takes label and field selectors, and returns the list of Foos that match those selectors.
@@ -82,46 +82,46 @@ func (c *FakeFoos) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interf
 }
 
 // Create takes the representation of a foo and creates it.  Returns the server's representation of the foo, and an error, if there is any.
-func (c *FakeFoos) Create(ctx context.Context, foo *v1alpha1.Foo, opts v1.CreateOptions) (result *v1alpha1.Foo, err error) {
-	emptyResult := &v1alpha1.Foo{}
+func (c *FakeFoos) Create(ctx context.Context, foo *v1alpha1.YamaDocker, opts v1.CreateOptions) (result *v1alpha1.YamaDocker, err error) {
+	emptyResult := &v1alpha1.YamaDocker{}
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateActionWithOptions(foosResource, c.ns, foo, opts), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
 	}
-	return obj.(*v1alpha1.Foo), err
+	return obj.(*v1alpha1.YamaDocker), err
 }
 
 // Update takes the representation of a foo and updates it. Returns the server's representation of the foo, and an error, if there is any.
-func (c *FakeFoos) Update(ctx context.Context, foo *v1alpha1.Foo, opts v1.UpdateOptions) (result *v1alpha1.Foo, err error) {
-	emptyResult := &v1alpha1.Foo{}
+func (c *FakeFoos) Update(ctx context.Context, foo *v1alpha1.YamaDocker, opts v1.UpdateOptions) (result *v1alpha1.YamaDocker, err error) {
+	emptyResult := &v1alpha1.YamaDocker{}
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateActionWithOptions(foosResource, c.ns, foo, opts), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
 	}
-	return obj.(*v1alpha1.Foo), err
+	return obj.(*v1alpha1.YamaDocker), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeFoos) UpdateStatus(ctx context.Context, foo *v1alpha1.Foo, opts v1.UpdateOptions) (result *v1alpha1.Foo, err error) {
-	emptyResult := &v1alpha1.Foo{}
+func (c *FakeFoos) UpdateStatus(ctx context.Context, foo *v1alpha1.YamaDocker, opts v1.UpdateOptions) (result *v1alpha1.YamaDocker, err error) {
+	emptyResult := &v1alpha1.YamaDocker{}
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceActionWithOptions(foosResource, "status", c.ns, foo, opts), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
 	}
-	return obj.(*v1alpha1.Foo), err
+	return obj.(*v1alpha1.YamaDocker), err
 }
 
 // Delete takes name of the foo and deletes it. Returns an error if one occurs.
 func (c *FakeFoos) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteActionWithOptions(foosResource, c.ns, name, opts), &v1alpha1.Foo{})
+		Invokes(testing.NewDeleteActionWithOptions(foosResource, c.ns, name, opts), &v1alpha1.YamaDocker{})
 
 	return err
 }
@@ -135,13 +135,13 @@ func (c *FakeFoos) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, 
 }
 
 // Patch applies the patch and returns the patched foo.
-func (c *FakeFoos) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.Foo, err error) {
-	emptyResult := &v1alpha1.Foo{}
+func (c *FakeFoos) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.YamaDocker, err error) {
+	emptyResult := &v1alpha1.YamaDocker{}
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceActionWithOptions(foosResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
 		return emptyResult, err
 	}
-	return obj.(*v1alpha1.Foo), err
+	return obj.(*v1alpha1.YamaDocker), err
 }

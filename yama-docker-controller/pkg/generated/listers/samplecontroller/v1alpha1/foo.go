@@ -30,7 +30,7 @@ import (
 type YamaDockerLister interface {
 	// List lists all Foos in the indexer.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Foo, err error)
+	List(selector labels.Selector) (ret []*v1alpha1.YamaDocker, err error)
 	// Foos returns an object that can list and get Foos.
 	Foos(namespace string) YamaDockerNamespaceLister
 	YamaDockerListerExpansion
@@ -38,17 +38,17 @@ type YamaDockerLister interface {
 
 // yamaDockerLister implements the YamaDockerLister interface.
 type yamaDockerLister struct {
-	listers.ResourceIndexer[*v1alpha1.Foo]
+	listers.ResourceIndexer[*v1alpha1.YamaDocker]
 }
 
 // NewYamaDockerLister returns a new YamaDockerLister.
 func NewYamaDockerLister(indexer cache.Indexer) YamaDockerLister {
-	return &yamaDockerLister{listers.New[*v1alpha1.Foo](indexer, v1alpha1.Resource("foo"))}
+	return &yamaDockerLister{listers.New[*v1alpha1.YamaDocker](indexer, v1alpha1.Resource("foo"))}
 }
 
 // Foos returns an object that can list and get Foos.
 func (s *yamaDockerLister) Foos(namespace string) YamaDockerNamespaceLister {
-	return yamaDockerNamespaceLister{listers.NewNamespaced[*v1alpha1.Foo](s.ResourceIndexer, namespace)}
+	return yamaDockerNamespaceLister{listers.NewNamespaced[*v1alpha1.YamaDocker](s.ResourceIndexer, namespace)}
 }
 
 // YamaDockerNamespaceLister helps list and get Foos.
@@ -56,15 +56,15 @@ func (s *yamaDockerLister) Foos(namespace string) YamaDockerNamespaceLister {
 type YamaDockerNamespaceLister interface {
 	// List lists all Foos in the indexer for a given namespace.
 	// Objects returned here must be treated as read-only.
-	List(selector labels.Selector) (ret []*v1alpha1.Foo, err error)
+	List(selector labels.Selector) (ret []*v1alpha1.YamaDocker, err error)
 	// Get retrieves the Foo from the indexer for a given namespace and name.
 	// Objects returned here must be treated as read-only.
-	Get(name string) (*v1alpha1.Foo, error)
+	Get(name string) (*v1alpha1.YamaDocker, error)
 	YamaDockerNamespaceListerExpansion
 }
 
 // fooNamespaceLister implements the FooNamespaceLister
 // interface.
 type yamaDockerNamespaceLister struct {
-	listers.ResourceIndexer[*v1alpha1.Foo]
+	listers.ResourceIndexer[*v1alpha1.YamaDocker]
 }

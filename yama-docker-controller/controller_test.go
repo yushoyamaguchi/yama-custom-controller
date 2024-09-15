@@ -51,7 +51,7 @@ type fixture struct {
 	client     *fake.Clientset
 	kubeclient *k8sfake.Clientset
 	// Objects to put in the store.
-	yamaDockerLister []*samplecontroller.Foo
+	yamaDockerLister []*samplecontroller.YamaDocker
 	deploymentLister []*apps.Deployment
 	// Actions expected to happen on the client.
 	kubeactions []core.Action
@@ -69,8 +69,8 @@ func newFixture(t *testing.T) *fixture {
 	return f
 }
 
-func newFoo(name string, replicas *int32) *samplecontroller.Foo {
-	return &samplecontroller.Foo{
+func newFoo(name string, replicas *int32) *samplecontroller.YamaDocker {
+	return &samplecontroller.YamaDocker{
 		TypeMeta: metav1.TypeMeta{APIVersion: samplecontroller.SchemeGroupVersion.String()},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -235,12 +235,12 @@ func (f *fixture) expectUpdateDeploymentAction(d *apps.Deployment) {
 	f.kubeactions = append(f.kubeactions, core.NewUpdateAction(schema.GroupVersionResource{Resource: "deployments"}, d.Namespace, d))
 }
 
-func (f *fixture) expectUpdateFooStatusAction(foo *samplecontroller.Foo) {
+func (f *fixture) expectUpdateFooStatusAction(foo *samplecontroller.YamaDocker) {
 	action := core.NewUpdateSubresourceAction(schema.GroupVersionResource{Resource: "foos"}, "status", foo.Namespace, foo)
 	f.actions = append(f.actions, action)
 }
 
-func getRef(foo *samplecontroller.Foo, t *testing.T) cache.ObjectName {
+func getRef(foo *samplecontroller.YamaDocker, t *testing.T) cache.ObjectName {
 	ref := cache.MetaObjectToName(foo)
 	return ref
 }

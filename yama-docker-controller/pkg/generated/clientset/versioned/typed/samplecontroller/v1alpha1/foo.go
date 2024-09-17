@@ -29,14 +29,14 @@ import (
 	scheme "k8s.io/sample-controller/pkg/generated/clientset/versioned/scheme"
 )
 
-// FoosGetter has a method to return a FooInterface.
+// YamaDockersGetter has a method to return a FooInterface.
 // A group's client should implement this interface.
-type FoosGetter interface {
-	Foos(namespace string) FooInterface
+type YamaDockersGetter interface {
+	YamaDockers(namespace string) YamaDockerInterface
 }
 
-// FooInterface has methods to work with Foo resources.
-type FooInterface interface {
+// YamaDockerInterface has methods to work with Foo resources.
+type YamaDockerInterface interface {
 	Create(ctx context.Context, foo *v1alpha1.YamaDocker, opts v1.CreateOptions) (*v1alpha1.YamaDocker, error)
 	Update(ctx context.Context, foo *v1alpha1.YamaDocker, opts v1.UpdateOptions) (*v1alpha1.YamaDocker, error)
 	// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
@@ -44,26 +44,26 @@ type FooInterface interface {
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.YamaDocker, error)
-	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.FooList, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1alpha1.YamaDockerList, error)
 	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
 	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1alpha1.YamaDocker, err error)
 	FooExpansion
 }
 
-// foos implements FooInterface
-type foos struct {
-	*gentype.ClientWithList[*v1alpha1.YamaDocker, *v1alpha1.FooList]
+// yamaDockers implements FooInterface
+type yamaDockers struct {
+	*gentype.ClientWithList[*v1alpha1.YamaDocker, *v1alpha1.YamaDockerList]
 }
 
-// newFoos returns a Foos
-func newFoos(c *SamplecontrollerV1alpha1Client, namespace string) *foos {
-	return &foos{
-		gentype.NewClientWithList[*v1alpha1.YamaDocker, *v1alpha1.FooList](
-			"foos",
+// newYamaDockers returns a Foos
+func newYamaDockers(c *SamplecontrollerV1alpha1Client, namespace string) *yamaDockers {
+	return &yamaDockers{
+		gentype.NewClientWithList[*v1alpha1.YamaDocker, *v1alpha1.YamaDockerList](
+			"yamadockers",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
 			func() *v1alpha1.YamaDocker { return &v1alpha1.YamaDocker{} },
-			func() *v1alpha1.FooList { return &v1alpha1.FooList{} }),
+			func() *v1alpha1.YamaDockerList { return &v1alpha1.YamaDockerList{} }),
 	}
 }

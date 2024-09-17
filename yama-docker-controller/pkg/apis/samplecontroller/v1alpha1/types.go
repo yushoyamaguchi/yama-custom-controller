@@ -45,8 +45,8 @@ type FooStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FooList is a list of Foo resources
-type FooList struct {
+// YamaDockerList is a list of Foo resources
+type YamaDockerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 

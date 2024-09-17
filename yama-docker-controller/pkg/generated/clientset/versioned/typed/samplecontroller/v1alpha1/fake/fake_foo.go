@@ -52,8 +52,8 @@ func (c *FakeFoos) Get(ctx context.Context, name string, options v1.GetOptions) 
 }
 
 // List takes label and field selectors, and returns the list of Foos that match those selectors.
-func (c *FakeFoos) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.FooList, err error) {
-	emptyResult := &v1alpha1.FooList{}
+func (c *FakeFoos) List(ctx context.Context, opts v1.ListOptions) (result *v1alpha1.YamaDockerList, err error) {
+	emptyResult := &v1alpha1.YamaDockerList{}
 	obj, err := c.Fake.
 		Invokes(testing.NewListActionWithOptions(foosResource, foosKind, c.ns, opts), emptyResult)
 
@@ -65,8 +65,8 @@ func (c *FakeFoos) List(ctx context.Context, opts v1.ListOptions) (result *v1alp
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.FooList{ListMeta: obj.(*v1alpha1.FooList).ListMeta}
-	for _, item := range obj.(*v1alpha1.FooList).Items {
+	list := &v1alpha1.YamaDockerList{ListMeta: obj.(*v1alpha1.YamaDockerList).ListMeta}
+	for _, item := range obj.(*v1alpha1.YamaDockerList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -130,7 +130,7 @@ func (c *FakeFoos) Delete(ctx context.Context, name string, opts v1.DeleteOption
 func (c *FakeFoos) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	action := testing.NewDeleteCollectionActionWithOptions(foosResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.FooList{})
+	_, err := c.Fake.Invokes(action, &v1alpha1.YamaDockerList{})
 	return err
 }
 

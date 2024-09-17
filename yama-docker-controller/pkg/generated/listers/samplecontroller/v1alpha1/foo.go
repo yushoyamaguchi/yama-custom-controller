@@ -31,8 +31,8 @@ type YamaDockerLister interface {
 	// List lists all Foos in the indexer.
 	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1alpha1.YamaDocker, err error)
-	// Foos returns an object that can list and get Foos.
-	Foos(namespace string) YamaDockerNamespaceLister
+	// YamaDockers returns an object that can list and get YamaDockers.
+	YamaDockers(namespace string) YamaDockerNamespaceLister
 	YamaDockerListerExpansion
 }
 
@@ -46,8 +46,8 @@ func NewYamaDockerLister(indexer cache.Indexer) YamaDockerLister {
 	return &yamaDockerLister{listers.New[*v1alpha1.YamaDocker](indexer, v1alpha1.Resource("foo"))}
 }
 
-// Foos returns an object that can list and get Foos.
-func (s *yamaDockerLister) Foos(namespace string) YamaDockerNamespaceLister {
+// YamaDockers returns an object that can list and get YamaDockers.
+func (s *yamaDockerLister) YamaDockers(namespace string) YamaDockerNamespaceLister {
 	return yamaDockerNamespaceLister{listers.NewNamespaced[*v1alpha1.YamaDocker](s.ResourceIndexer, namespace)}
 }
 

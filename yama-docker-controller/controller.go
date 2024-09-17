@@ -242,7 +242,7 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "objectRef", objectRef)
 
 	// Get the Foo resource with this namespace/name
-	foo, err := c.foosLister.Foos(objectRef.Namespace).Get(objectRef.Name)
+	foo, err := c.foosLister.YamaDockers(objectRef.Namespace).Get(objectRef.Name)
 	if err != nil {
 		// The Foo resource may no longer exist, in which case we stop
 		// processing.
@@ -321,7 +321,7 @@ func (c *Controller) updateFooStatus(foo *samplev1alpha1.YamaDocker, deployment 
 	// we must use Update instead of UpdateStatus to update the Status block of the Foo resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.sampleclientset.SamplecontrollerV1alpha1().Foos(foo.Namespace).UpdateStatus(context.TODO(), fooCopy, metav1.UpdateOptions{FieldManager: FieldManager})
+	_, err := c.sampleclientset.SamplecontrollerV1alpha1().YamaDockers(foo.Namespace).UpdateStatus(context.TODO(), fooCopy, metav1.UpdateOptions{FieldManager: FieldManager})
 	return err
 }
 
@@ -371,7 +371,7 @@ func (c *Controller) handleObject(obj interface{}) {
 			return
 		}
 
-		foo, err := c.foosLister.Foos(object.GetNamespace()).Get(ownerRef.Name)
+		foo, err := c.foosLister.YamaDockers(object.GetNamespace()).Get(ownerRef.Name)
 		if err != nil {
 			logger.V(4).Info("Ignore orphaned object", "object", klog.KObj(object), "foo", ownerRef.Name)
 			return

@@ -28,7 +28,7 @@ type FakeSamplecontrollerV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeSamplecontrollerV1alpha1) Foos(namespace string) v1alpha1.FooInterface {
+func (c *FakeSamplecontrollerV1alpha1) Foos(namespace string) v1alpha1.YamaDockerInterface {
 	return &FakeFoos{c, namespace}
 }
 

@@ -54,7 +54,7 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	switch resource {
 	// Group=samplecontroller.k8s.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("foos"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Samplecontroller().V1alpha1().Foos().Informer()}, nil
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Samplecontroller().V1alpha1().YamaDockers().Informer()}, nil
 
 	}
 

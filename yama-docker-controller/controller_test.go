@@ -91,14 +91,14 @@ func (f *fixture) newController(ctx context.Context) (*Controller, informers.Sha
 	k8sI := kubeinformers.NewSharedInformerFactory(f.kubeclient, noResyncPeriodFunc())
 
 	c := NewController(ctx, f.kubeclient, f.client,
-		k8sI.Apps().V1().Deployments(), i.Samplecontroller().V1alpha1().Foos())
+		k8sI.Apps().V1().Deployments(), i.Samplecontroller().V1alpha1().YamaDockers())
 
 	c.foosSynced = alwaysReady
 	c.deploymentsSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
 
 	for _, f := range f.yamaDockerLister {
-		i.Samplecontroller().V1alpha1().Foos().Informer().GetIndexer().Add(f)
+		i.Samplecontroller().V1alpha1().YamaDockers().Informer().GetIndexer().Add(f)
 	}
 
 	for _, d := range f.deploymentLister {

@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// Foos returns a FooInformer.
-	Foos() YamaDockerInformer
+	// YamaDockers returns a FooInformer.
+	YamaDockers() YamaDockerInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// Foos returns a FooInformer.
-func (v *version) Foos() YamaDockerInformer {
+// YamaDockers returns a FooInformer.
+func (v *version) YamaDockers() YamaDockerInformer {
 	return &yamaDockerInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -302,7 +302,7 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 
 	// Finally, we update the status block of the Foo resource to reflect the
 	// current state of the world
-	err = c.updateFooStatus(yamaDocker, deployment)
+	err = c.updateYamaDockerStatus(yamaDocker, deployment)
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	return nil
 }
 
-func (c *Controller) updateFooStatus(yamaDocker *samplev1alpha1.YamaDocker, deployment *appsv1.Deployment) error {
+func (c *Controller) updateYamaDockerStatus(yamaDocker *samplev1alpha1.YamaDocker, deployment *appsv1.Deployment) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
@@ -367,7 +367,8 @@ func (c *Controller) handleObject(obj interface{}) {
 	if ownerRef := metav1.GetControllerOf(object); ownerRef != nil {
 		// If this object is not owned by a Foo, we should not do anything more
 		// with it.
-		if ownerRef.Kind != "Foo" {
+		if ownerRef.Kind != "YamaDocker" {
+			fmt.Printf("ownerRef.Kind: %s\n", ownerRef.Kind)
 			return
 		}
 
@@ -395,7 +396,7 @@ func newDeployment(yamaDocker *samplev1alpha1.YamaDocker) *appsv1.Deployment {
 			Name:      yamaDocker.Spec.DeploymentName,
 			Namespace: yamaDocker.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(yamaDocker, samplev1alpha1.SchemeGroupVersion.WithKind("Foo")),
+				*metav1.NewControllerRef(yamaDocker, samplev1alpha1.SchemeGroupVersion.WithKind("YamaDocker")),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{

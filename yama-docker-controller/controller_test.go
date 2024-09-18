@@ -93,7 +93,7 @@ func (f *fixture) newController(ctx context.Context) (*Controller, informers.Sha
 	c := NewController(ctx, f.kubeclient, f.client,
 		k8sI.Apps().V1().Deployments(), i.Samplecontroller().V1alpha1().YamaDockers())
 
-	c.foosSynced = alwaysReady
+	c.yamaDockersSynced = alwaysReady
 	c.deploymentsSynced = alwaysReady
 	c.recorder = &record.FakeRecorder{}
 

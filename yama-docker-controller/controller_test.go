@@ -76,7 +76,7 @@ func newFoo(name string, replicas *int32) *samplecontroller.YamaDocker {
 			Name:      name,
 			Namespace: metav1.NamespaceDefault,
 		},
-		Spec: samplecontroller.FooSpec{
+		Spec: samplecontroller.YamaDockerSpec{
 			DeploymentName: fmt.Sprintf("%s-deployment", name),
 			Replicas:       replicas,
 		},

@@ -28,18 +28,18 @@ type YamaDocker struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   FooSpec   `json:"spec"`
-	Status FooStatus `json:"status"`
+	Spec   YamaDockerSpec   `json:"spec"`
+	Status YamaDockerStatus `json:"status"`
 }
 
-// FooSpec is the spec for a Foo resource
-type FooSpec struct {
+// YamaDockerSpec is the spec for a Foo resource
+type YamaDockerSpec struct {
 	DeploymentName string `json:"deploymentName"`
 	Replicas       *int32 `json:"replicas"`
 }
 
-// FooStatus is the status for a Foo resource
-type FooStatus struct {
+// YamaDockerStatus is the status for a Foo resource
+type YamaDockerStatus struct {
 	AvailableReplicas int32 `json:"availableReplicas"`
 }
 

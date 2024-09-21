@@ -35,12 +35,13 @@ type YamaDocker struct {
 // YamaDockerSpec is the spec for a Foo resource
 type YamaDockerSpec struct {
 	ContainerName string `json:"containerName"`
-	Image         string `json:"imageName"`
+	ImageName     string `json:"imageName"`
 }
 
 // YamaDockerStatus is the status for a Foo resource
 type YamaDockerStatus struct {
-	AvailableReplicas int32 `json:"availableReplicas"`
+	ContainerID     string `json:"containerID"`
+	ContainerStatus string `json:"containerStatus"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

@@ -19,12 +19,16 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"reflect"
 	"time"
 
 	"golang.org/x/time/rate"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -41,6 +45,12 @@ import (
 	samplescheme "k8s.io/sample-controller/pkg/generated/clientset/versioned/scheme"
 	informers "k8s.io/sample-controller/pkg/generated/informers/externalversions/samplecontroller/v1alpha1"
 	listers "k8s.io/sample-controller/pkg/generated/listers/samplecontroller/v1alpha1"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
 )
 
 const controllerAgentName = "sample-controller"
@@ -82,7 +92,8 @@ type Controller struct {
 	workqueue workqueue.TypedRateLimitingInterface[cache.ObjectName]
 	// recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
-	recorder record.EventRecorder
+	recorder     record.EventRecorder
+	dockerClient *client.Client
 }
 
 // NewController returns a new sample controller
@@ -108,6 +119,12 @@ func NewController(
 		&workqueue.TypedBucketRateLimiter[cache.ObjectName]{Limiter: rate.NewLimiter(rate.Limit(50), 300)},
 	)
 
+	dockerClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		logger.Error(err, "Failed to create Docker client")
+		return nil
+	}
+
 	controller := &Controller{
 		kubeclientset:     kubeclientset,
 		sampleclientset:   sampleclientset,
@@ -115,6 +132,7 @@ func NewController(
 		yamaDockersSynced: yamaDockerInformer.Informer().HasSynced,
 		workqueue:         workqueue.NewTypedRateLimitingQueue(ratelimiter),
 		recorder:          recorder,
+		dockerClient:      dockerClient,
 	}
 
 	logger.Info("Setting up event handlers")
@@ -125,14 +143,64 @@ func NewController(
 			controller.enqueueFoo(new)
 		},
 	})
-	// Set up an event handler for when Deployment resources change. This
-	// handler will lookup the owner of the given Deployment, and if it is
-	// owned by a Foo resource then the handler will enqueue that Foo resource for
-	// processing. This way, we don't need to implement custom logic for
-	// handling Deployment resources. More info on this pattern:
-	// https://github.com/kubernetes/community/blob/8cafef897a22026d42f5e5bb3f104febe7e29830/contributors/devel/controllers.md
+
+	// Start watching Docker events
+	go controller.watchDockerEvents(ctx)
 
 	return controller
+}
+
+func (c *Controller) watchDockerEvents(ctx context.Context) {
+	logger := klog.FromContext(ctx)
+
+	filters := filters.NewArgs()
+	filters.Add("type", "container")
+
+	options := events.ListOptions{
+		Filters: filters,
+	}
+
+	messages, errs := c.dockerClient.Events(ctx, options)
+
+	for {
+		select {
+		case event := <-messages:
+			// Handle the event
+			logger.V(4).Info("Received Docker event", "event", event)
+
+			// Enqueue the relevant YamaDocker resource
+			c.enqueueYamaDockerForEvent(event)
+		case err := <-errs:
+			logger.Error(err, "Error from Docker events")
+		case <-ctx.Done():
+			logger.Info("Stopping Docker event watcher")
+			return
+		}
+	}
+}
+
+func (c *Controller) enqueueYamaDockerForEvent(event events.Message) {
+	containerName := event.Actor.Attributes["name"]
+	if containerName == "" {
+		return
+	}
+
+	// Find the YamaDocker resource with this containerName
+	yamaDockers, err := c.yamaDockersLister.List(labels.Everything())
+	if err != nil {
+		klog.Error(err, "Failed to list YamaDocker resources")
+		return
+	}
+
+	for _, yamaDocker := range yamaDockers {
+		if yamaDocker.Spec.ContainerName == containerName {
+			objectRef := cache.ObjectName{
+				Namespace: yamaDocker.Namespace,
+				Name:      yamaDocker.Name,
+			}
+			c.workqueue.Add(objectRef)
+		}
+	}
 }
 
 // Run will set up the event handlers for types we are interested in, as well
@@ -215,28 +283,67 @@ func (c *Controller) processNextWorkItem(ctx context.Context) bool {
 	return true
 }
 
-// syncHandler compares the actual state with the desired, and attempts to
-// converge the two. It then updates the Status block of the Foo resource
-// with the current status of the resource.
 func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName) error {
-	//logger := klog.LoggerWithValues(klog.FromContext(ctx), "objectRef", objectRef)
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "objectRef", objectRef)
 
-	// Get the YamaDocker resource with this namespace/name
+	// Get the YamaDocker resource
 	yamaDocker, err := c.yamaDockersLister.YamaDockers(objectRef.Namespace).Get(objectRef.Name)
 	if err != nil {
-		// The Foo resource may no longer exist, in which case we stop
-		// processing.
 		if errors.IsNotFound(err) {
-			utilruntime.HandleErrorWithContext(ctx, err, "Foo referenced by item in work queue no longer exists", "objectReference", objectRef)
+			utilruntime.HandleErrorWithContext(ctx, err, "YamaDocker resource not found", "objectRef", objectRef)
 			return nil
 		}
-
 		return err
 	}
 
-	// Finally, we update the status block of the Foo resource to reflect the
-	// current state of the world
-	err = c.updateYamaDockerStatus(yamaDocker)
+	containerName := yamaDocker.Spec.ContainerName
+	imageName := yamaDocker.Spec.ImageName
+
+	// Check the current state of the Docker container
+	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("name", containerName)),
+	})
+
+	if err != nil {
+		logger.Error(err, "Failed to list Docker containers")
+		return err
+	}
+
+	if len(containers) == 0 {
+		// Container does not exist; create and start it
+		logger.Info("Container not found, creating", "containerName", containerName)
+		err = c.createAndStartContainer(ctx, yamaDocker)
+		if err != nil {
+			logger.Error(err, "Failed to create and start container", "containerName", containerName)
+			return err
+		}
+	} else {
+		// Container exists; check if the image matches
+		container := containers[0]
+		if container.Image != imageName {
+			// Stop and remove the container, then create and start a new one
+			logger.Info("Container image mismatch, recreating", "containerName", containerName, "currentImage", container.Image, "desiredImage", imageName)
+			err = c.recreateContainer(ctx, container.ID, yamaDocker)
+			if err != nil {
+				logger.Error(err, "Failed to recreate container", "containerName", containerName)
+				return err
+			}
+		} else {
+			// Ensure the container is running
+			if !container.State.Running {
+				logger.Info("Container is not running, starting", "containerName", containerName)
+				err = c.dockerClient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
+				if err != nil {
+					logger.Error(err, "Failed to start container", "containerName", containerName)
+					return err
+				}
+			}
+		}
+	}
+
+	// Update the status of the YamaDocker resource
+	err = c.updateYamaDockerStatus(ctx, yamaDocker)
 	if err != nil {
 		return err
 	}
@@ -245,12 +352,111 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	return nil
 }
 
-func (c *Controller) updateYamaDockerStatus(yamaDocker *samplev1alpha1.YamaDocker) error {
+func (c *Controller) createAndStartContainer(ctx context.Context, yamaDocker *samplev1alpha1.YamaDocker) error {
+	containerName := yamaDocker.Spec.ContainerName
+	imageName := yamaDocker.Spec.ImageName
 
-	//fooCopy := yamaDocker.DeepCopy()
-	//fooCopy.Status.AvailableReplicas = deployment.Status.AvailableReplicas
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "containerName", containerName)
 
-	//_, err := c.sampleclientset.SamplecontrollerV1alpha1().YamaDockers(yamaDocker.Namespace).UpdateStatus(context.TODO(), fooCopy, metav1.UpdateOptions{FieldManager: FieldManager})
+	// Pull the image
+	out, err := c.dockerClient.ImagePull(ctx, imageName, types.ImagePullOptions{})
+	if err != nil {
+		logger.Error(err, "Failed to pull image", "imageName", imageName)
+		return err
+	}
+	defer out.Close()
+	io.Copy(io.Discard, out) // Read the output to completion
+
+	// Create the container
+	resp, err := c.dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: imageName,
+	}, nil, nil, nil, containerName)
+	if err != nil {
+		logger.Error(err, "Failed to create container")
+		return err
+	}
+
+	// Start the container
+	err = c.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	if err != nil {
+		logger.Error(err, "Failed to start container")
+		return err
+	}
+
+	logger.Info("Container created and started", "containerID", resp.ID)
+	return nil
+}
+
+func (c *Controller) recreateContainer(ctx context.Context, containerID string, yamaDocker *samplev1alpha1.YamaDocker) error {
+	containerName := yamaDocker.Spec.ContainerName
+
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "containerName", containerName)
+
+	// Stop the container
+	err := c.dockerClient.ContainerStop(ctx, containerID, nil)
+	if err != nil {
+		logger.Error(err, "Failed to stop container", "containerID", containerID)
+		return err
+	}
+
+	// Remove the container
+	err = c.dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
+	if err != nil {
+		logger.Error(err, "Failed to remove container", "containerID", containerID)
+		return err
+	}
+
+	// Create and start a new container
+	err = c.createAndStartContainer(ctx, yamaDocker)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Controller) updateYamaDockerStatus(ctx context.Context, yamaDocker *samplev1alpha1.YamaDocker) error {
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "yamaDocker", yamaDocker.Name)
+
+	containerName := yamaDocker.Spec.ContainerName
+
+	// Get the container status
+	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("name", containerName)),
+	})
+
+	if err != nil {
+		logger.Error(err, "Failed to list Docker containers")
+		return err
+	}
+
+	status := samplev1alpha1.YamaDockerStatus{}
+
+	if len(containers) > 0 {
+		containerJSON, err := c.dockerClient.ContainerInspect(ctx, containers[0].ID)
+		if err != nil {
+			logger.Error(err, "Failed to inspect container")
+			return err
+		}
+		status.ContainerID = containerJSON.ID
+		status.ContainerStatus = containerJSON.State.Status
+	} else {
+		status.ContainerID = ""
+		status.ContainerStatus = "NotFound"
+	}
+
+	if !reflect.DeepEqual(yamaDocker.Status, status) {
+		yamaDockerCopy := yamaDocker.DeepCopy()
+		yamaDockerCopy.Status = status
+
+		_, err := c.sampleclientset.SamplecontrollerV1alpha1().YamaDockers(yamaDocker.Namespace).UpdateStatus(ctx, yamaDockerCopy, metav1.UpdateOptions{FieldManager: FieldManager})
+		if err != nil {
+			logger.Error(err, "Failed to update YamaDocker status")
+			return err
+		}
+	}
+
 	return nil
 }
 

@@ -34,10 +34,8 @@ type YamaDocker struct {
 
 // YamaDockerSpec is the spec for a Foo resource
 type YamaDockerSpec struct {
-	DeploymentName string `json:"deploymentName"`
-	Replicas       *int32 `json:"replicas"`
-	ContainerName  string `json:"containerName"`
-	Image          string `json:"imageName"`
+	ContainerName string `json:"containerName"`
+	Image         string `json:"imageName"`
 }
 
 // YamaDockerStatus is the status for a Foo resource

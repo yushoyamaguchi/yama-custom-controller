@@ -20,12 +20,6 @@ spec:
             spec:
               type: object
               properties:
-                deploymentName:
-                  type: string
-                replicas:
-                  type: integer
-                  minimum: 1
-                  maximum: 10
                 containerName:
                   type: string
                 imageName:

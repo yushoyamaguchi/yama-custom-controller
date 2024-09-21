@@ -3,7 +3,5 @@ kind: YamaDocker
 metadata:
   name: example-foo
 spec:
-  deploymentName: example-foo
-  replicas: 1
   containerName: example-container
   imageName: nicolaka/netshoot:latest

@@ -300,7 +300,7 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	// Check the current state of the Docker container
 	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("name", containerName)),
+		Filters: filters.NewArgs(filters.Arg("name", containerName), filters.Arg("status", "running")),
 	})
 
 	if err != nil {

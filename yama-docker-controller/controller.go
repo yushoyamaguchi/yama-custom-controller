@@ -289,6 +289,10 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	if err != nil {
 		if errors.IsNotFound(err) {
 			utilruntime.HandleErrorWithContext(ctx, err, "YamaDocker resource not found", "objectRef", objectRef)
+			err = c.cleanupContainer(ctx, objectRef)
+			if err != nil {
+				logger.Error(err, "Failed to cleanup Docker container", "objectRef", objectRef)
+			}
 			return nil
 		}
 		return err
@@ -300,7 +304,7 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	// Check the current state of the Docker container
 	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("name", containerName), filters.Arg("status", "running")),
+		Filters: filters.NewArgs(filters.Arg("name", containerName), filters.Arg("status", "running"), filters.Arg("label", "created_by=YamaDocker-Controller")),
 	})
 
 	if err != nil {
@@ -311,9 +315,9 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	if len(containers) == 0 {
 		// Container does not exist; create and start it
 		logger.Info("Container not found, creating", "containerName", containerName)
-		err = c.createAndStartContainer(ctx, yamaDocker)
+		err = c.recreateContainer(ctx, "", yamaDocker)
 		if err != nil {
-			logger.Error(err, "Failed to create and start container", "containerName", containerName)
+			logger.Error(err, "Failed to recreate container", "containerName", containerName)
 			return err
 		}
 	} else {
@@ -368,6 +372,9 @@ func (c *Controller) createAndStartContainer(ctx context.Context, yamaDocker *sa
 	resp, err := c.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: imageName,
 		Cmd:   []string{"sleep", "infinity"},
+		Labels: map[string]string{
+			"created_by": "YamaDocker-Controller",
+		},
 	}, nil, nil, nil, containerName)
 	if err != nil {
 		logger.Error(err, "Failed to create container")
@@ -468,4 +475,45 @@ func (c *Controller) enqueueFoo(obj interface{}) {
 	} else {
 		c.workqueue.Add(objectRef)
 	}
+}
+
+// Cleanup function to stop and remove the Docker container when YamaDocker resource is deleted
+func (c *Controller) cleanupContainer(ctx context.Context, objectRef cache.ObjectName) error {
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "objectRef", objectRef)
+
+	// Find the Docker container associated with the YamaDocker resource
+	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{
+		All:     true,
+		Filters: filters.NewArgs(filters.Arg("name", objectRef.Name), filters.Arg("label", "created_by=YamaDocker-Controller")),
+	})
+
+	if err != nil {
+		logger.Error(err, "Failed to list Docker containers for cleanup")
+		return err
+	}
+
+	if len(containers) > 0 {
+		dockerContainer := containers[0]
+		logger.Info("Stopping and removing container", "containerID", dockerContainer.ID)
+
+		// Stop the container
+		err = c.dockerClient.ContainerStop(ctx, dockerContainer.ID, container.StopOptions{})
+		if err != nil {
+			logger.Error(err, "Failed to stop container", "containerID", dockerContainer.ID)
+			return err
+		}
+
+		// Remove the container
+		err = c.dockerClient.ContainerRemove(ctx, dockerContainer.ID, container.RemoveOptions{Force: true})
+		if err != nil {
+			logger.Error(err, "Failed to remove container", "containerID", dockerContainer.ID)
+			return err
+		}
+
+		logger.Info("Successfully cleaned up container", "containerID", dockerContainer.ID)
+	} else {
+		logger.Info("No container found for cleanup", "objectRef", objectRef)
+	}
+
+	return nil
 }

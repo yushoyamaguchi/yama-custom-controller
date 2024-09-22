@@ -27,8 +27,10 @@ spec:
             status:
               type: object
               properties:
-                availableReplicas:
-                  type: integer
+                containerID:
+                  type: string
+                containerStatus:
+                  type: string
   names:
     kind: YamaDocker
     plural: yamadockers

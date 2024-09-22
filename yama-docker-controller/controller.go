@@ -319,6 +319,7 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 	} else {
 		// Container exists; check if the image matches
 		dockerContainer := containers[0]
+		fmt.Println("yama_debug: dockerContainer.Image: ", dockerContainer.Image)
 		if dockerContainer.Image != imageName {
 			// Stop and remove the container, then create and start a new one
 			logger.Info("Container image mismatch, recreating", "containerName", containerName, "currentImage", dockerContainer.Image, "desiredImage", imageName)
@@ -366,6 +367,7 @@ func (c *Controller) createAndStartContainer(ctx context.Context, yamaDocker *sa
 	// Create the container
 	resp, err := c.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: imageName,
+		Cmd:   []string{"sleep", "infinity"},
 	}, nil, nil, nil, containerName)
 	if err != nil {
 		logger.Error(err, "Failed to create container")

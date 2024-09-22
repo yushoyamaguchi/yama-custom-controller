@@ -46,10 +46,10 @@ import (
 	informers "k8s.io/sample-controller/pkg/generated/informers/externalversions/samplecontroller/v1alpha1"
 	listers "k8s.io/sample-controller/pkg/generated/listers/samplecontroller/v1alpha1"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 )
 
@@ -142,6 +142,7 @@ func NewController(
 		UpdateFunc: func(old, new interface{}) {
 			controller.enqueueFoo(new)
 		},
+		DeleteFunc: controller.enqueueFoo,
 	})
 
 	// Start watching Docker events
@@ -320,24 +321,22 @@ func (c *Controller) syncHandler(ctx context.Context, objectRef cache.ObjectName
 		}
 	} else {
 		// Container exists; check if the image matches
-		container := containers[0]
-		if container.Image != imageName {
+		dockerContainer := containers[0]
+		if dockerContainer.Image != imageName {
 			// Stop and remove the container, then create and start a new one
-			logger.Info("Container image mismatch, recreating", "containerName", containerName, "currentImage", container.Image, "desiredImage", imageName)
-			err = c.recreateContainer(ctx, container.ID, yamaDocker)
+			logger.Info("Container image mismatch, recreating", "containerName", containerName, "currentImage", dockerContainer.Image, "desiredImage", imageName)
+			err = c.recreateContainer(ctx, dockerContainer.ID, yamaDocker)
 			if err != nil {
 				logger.Error(err, "Failed to recreate container", "containerName", containerName)
 				return err
 			}
 		} else {
 			// Ensure the container is running
-			if !container.State.Running {
+			if dockerContainer.State == "running" {
 				logger.Info("Container is not running, starting", "containerName", containerName)
-				err = c.dockerClient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
-				if err != nil {
-					logger.Error(err, "Failed to start container", "containerName", containerName)
-					return err
-				}
+				err = c.dockerClient.ContainerStart(ctx, dockerContainer.ID, container.StartOptions{})
+				logger.Error(err, "Failed to start container", "containerName", containerName)
+				return err
 			}
 		}
 	}
@@ -359,7 +358,7 @@ func (c *Controller) createAndStartContainer(ctx context.Context, yamaDocker *sa
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "containerName", containerName)
 
 	// Pull the image
-	out, err := c.dockerClient.ImagePull(ctx, imageName, types.ImagePullOptions{})
+	out, err := c.dockerClient.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
 		logger.Error(err, "Failed to pull image", "imageName", imageName)
 		return err
@@ -377,7 +376,7 @@ func (c *Controller) createAndStartContainer(ctx context.Context, yamaDocker *sa
 	}
 
 	// Start the container
-	err = c.dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	err = c.dockerClient.ContainerStart(ctx, resp.ID, container.StartOptions{})
 	if err != nil {
 		logger.Error(err, "Failed to start container")
 		return err
@@ -393,14 +392,14 @@ func (c *Controller) recreateContainer(ctx context.Context, containerID string, 
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "containerName", containerName)
 
 	// Stop the container
-	err := c.dockerClient.ContainerStop(ctx, containerID, nil)
+	err := c.dockerClient.ContainerStop(ctx, containerID, container.StopOptions{})
 	if err != nil {
 		logger.Error(err, "Failed to stop container", "containerID", containerID)
 		return err
 	}
 
 	// Remove the container
-	err = c.dockerClient.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{})
+	err = c.dockerClient.ContainerRemove(ctx, containerID, container.RemoveOptions{})
 	if err != nil {
 		logger.Error(err, "Failed to remove container", "containerID", containerID)
 		return err

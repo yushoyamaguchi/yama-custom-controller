@@ -493,6 +493,7 @@ func (c *Controller) cleanupContainer(ctx context.Context, objectRef cache.Objec
 	}
 
 	if len(containers) > 0 {
+		// ToDo: check container name which should be deleted
 		dockerContainer := containers[0]
 		logger.Info("Stopping and removing container", "containerID", dockerContainer.ID)
 

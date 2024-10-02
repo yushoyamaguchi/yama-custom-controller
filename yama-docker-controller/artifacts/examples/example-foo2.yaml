@@ -1,0 +1,7 @@
+apiVersion: samplecontroller.k8s.io/v1alpha1
+kind: YamaDocker
+metadata:
+  name: example-foo2
+spec:
+  containerName: example-container2
+  imageName: nicolaka/netshoot:latest

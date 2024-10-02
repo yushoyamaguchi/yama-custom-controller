@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
@@ -91,6 +92,9 @@ type Controller struct {
 	// Kubernetes API.
 	recorder     record.EventRecorder
 	dockerClient *client.Client
+
+	yamaDockerToContainerName map[string]string
+	mapMutex                  sync.RWMutex
 }
 
 // NewController returns a new sample controller
@@ -123,13 +127,14 @@ func NewController(
 	}
 
 	controller := &Controller{
-		kubeclientset:     kubeclientset,
-		sampleclientset:   sampleclientset,
-		yamaDockersLister: yamaDockerInformer.Lister(),
-		yamaDockersSynced: yamaDockerInformer.Informer().HasSynced,
-		workqueue:         workqueue.NewTypedRateLimitingQueue(ratelimiter),
-		recorder:          recorder,
-		dockerClient:      dockerClient,
+		kubeclientset:             kubeclientset,
+		sampleclientset:           sampleclientset,
+		yamaDockersLister:         yamaDockerInformer.Lister(),
+		yamaDockersSynced:         yamaDockerInformer.Informer().HasSynced,
+		workqueue:                 workqueue.NewTypedRateLimitingQueue(ratelimiter),
+		recorder:                  recorder,
+		dockerClient:              dockerClient,
+		yamaDockerToContainerName: make(map[string]string),
 	}
 
 	logger.Info("Setting up event handlers")
@@ -146,6 +151,26 @@ func NewController(
 	go controller.watchDockerEvents(ctx)
 
 	return controller
+}
+
+// Add these methods to manage the mapping
+func (c *Controller) addMapping(yamaDockerName, containerName string) {
+	c.mapMutex.Lock()
+	defer c.mapMutex.Unlock()
+	c.yamaDockerToContainerName[yamaDockerName] = containerName
+}
+
+func (c *Controller) removeMapping(yamaDockerName string) {
+	c.mapMutex.Lock()
+	defer c.mapMutex.Unlock()
+	delete(c.yamaDockerToContainerName, yamaDockerName)
+}
+
+func (c *Controller) getContainerName(yamaDockerName string) (string, bool) {
+	c.mapMutex.RLock()
+	defer c.mapMutex.RUnlock()
+	containerName, exists := c.yamaDockerToContainerName[yamaDockerName]
+	return containerName, exists
 }
 
 func (c *Controller) watchDockerEvents(ctx context.Context) {
@@ -377,6 +402,8 @@ func (c *Controller) createAndStartContainer(ctx context.Context, yamaDocker *sa
 		return err
 	}
 
+	c.addMapping(yamaDocker.Name, containerName)
+
 	logger.Info("Container created and started", "containerID", resp.ID)
 	return nil
 }
@@ -477,12 +504,17 @@ func (c *Controller) enqueueFoo(obj interface{}) {
 // Cleanup function to stop and remove the Docker container when YamaDocker resource is deleted
 func (c *Controller) cleanupContainer(ctx context.Context, objectRef cache.ObjectName) error {
 	logger := klog.LoggerWithValues(klog.FromContext(ctx), "objectRef", objectRef)
-	fmt.Println("yama_debug: contannerName: ", objectRef.Name)
+
+	containerName, exists := c.getContainerName(objectRef.Name)
+	if !exists {
+		logger.Info("No container mapping found for cleanup", "objectRef", objectRef)
+		return nil
+	}
 
 	// Find the Docker container associated with the YamaDocker resource
 	containers, err := c.dockerClient.ContainerList(ctx, container.ListOptions{
 		All:     true,
-		Filters: filters.NewArgs(filters.Arg("label", "created_by=YamaDocker-Controller")),
+		Filters: filters.NewArgs(filters.Arg("label", "created_by=YamaDocker-Controller"), filters.Arg("name", containerName)),
 	})
 
 	fmt.Println("yama_debug: len(containers): ", len(containers))
@@ -515,6 +547,8 @@ func (c *Controller) cleanupContainer(ctx context.Context, objectRef cache.Objec
 	} else {
 		logger.Info("No container found for cleanup", "objectRef", objectRef)
 	}
+
+	c.removeMapping(objectRef.Name)
 
 	return nil
 }
